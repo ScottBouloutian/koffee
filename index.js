@@ -12,8 +12,6 @@ AWS.config.update({ region: 'us-east-1' });
 const polly = new AWS.Polly();
 const synthesizeSpeech = Observable.bindNodeCallback((...args) => polly.synthesizeSpeech(...args));
 const execListener = Observable.bindNodeCallback(exec);
-const jsonData = fs.readFileSync(path.resolve(__dirname, '.token.json'));
-const { token } = JSON.parse(jsonData);
 const boundary = 'boundary-koffee';
 
 const params = {
@@ -25,54 +23,42 @@ const params = {
     VoiceId: 'Joanna',
 };
 
-const BOUNDARY = 'BOUNDARY1234';
-const BOUNDARY_DASHES = '--';
-const NEWLINE = '\r\n';
-const METADATA_CONTENT_DISPOSITION = 'Content-Disposition: form-data; name="metadata"';
-const METADATA_CONTENT_TYPE = 'Content-Type: application/json; charset=UTF-8';
-const AUDIO_CONTENT_TYPE = 'Content-Type: audio/L16; rate=16000; channels=1';
-const AUDIO_CONTENT_DISPOSITION = 'Content-Disposition: form-data; name="audio"';
-const metadata = {
-    messageHeader: { },
-    messageBody: {
-        profile: 'alexa-close-talk',
-        locale: 'en-us',
-        format: 'audio/L16; rate=16000; channels=1',
-    },
-};
-const postDataStart = [
-    NEWLINE, BOUNDARY_DASHES, BOUNDARY, NEWLINE, METADATA_CONTENT_DISPOSITION, NEWLINE,
-    METADATA_CONTENT_TYPE, NEWLINE, NEWLINE, JSON.stringify(metadata), NEWLINE, BOUNDARY_DASHES,
-    BOUNDARY, NEWLINE, AUDIO_CONTENT_DISPOSITION, NEWLINE, AUDIO_CONTENT_TYPE, NEWLINE, NEWLINE,
-].join('');
-const postDataEnd = [NEWLINE, BOUNDARY_DASHES, BOUNDARY, BOUNDARY_DASHES, NEWLINE].join('');
-
 function order() {
+    const jsonData = fs.readFileSync(path.resolve(__dirname, '.token.json'));
+    const { token } = JSON.parse(jsonData);
+    const tempDirectory = path.resolve(__dirname, '.tmp');
+    const filePath = fileName => path.resolve(tempDirectory, fileName);
+
+    // Create a temporary working directory
+    if (!fs.existsSync(tempDirectory)){
+        fs.mkdirSync(tempDirectory);
+    }
+
+    // Convert text to speech
     synthesizeSpeech(params).flatMap((data) => {
-        fs.writeFileSync('polly.mp3', data.AudioStream);
-        return execListener('sox polly.mp3 -c 1 -r 16000 -e signed -b 16 avs_request.wav');
+        fs.writeFileSync(filePath('polly.mp3'), data.AudioStream);
+        // Convert audio to avs accepted format
+        return execListener([
+            `sox ${filePath('polly.mp3')}`,
+            '-c 1 -r 16000 -e signed -b 16',
+            `${filePath('avs_request.wav')}`,
+        ].join(' '));
     }).flatMap(() => {
-        const uri = 'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize';
-        const start = new Buffer(postDataStart);
-        const end = new Buffer(postDataEnd);
-        const audio = fs.readFileSync(path.resolve(__dirname, 'avs_request.wav'));
-        const buffer = Buffer.concat([start, audio, end]);
-        return axios.post(uri, buffer, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': `multipart/form-data; boundary=${BOUNDARY}`,
-            },
-        });
-    }).subscribe((response) => {
-        console.log(response.status);
-        const parsedMessage = httpMessageParser(response.data);
-        const audio = parsedMessage.multipart[1].body;
-        fs.writeFileSync('avs_response.mp3', audio);
-    }, error => {
-        console.log(error.message);
-        console.log(error.response);
-    });
-}
+        // Make the request to avs
+        return execListener([
+            'curl -i -k',
+            `-H "Authorization: Bearer ${token}"`,
+            '-F "metadata=<metadata.json;type=application/json; charset=UTF-8"',
+            `-F "audio=<${filePath('avs_request.wav')};type=audio/L16; rate=16000; channels=1"`,
+            `-o ${filePath('avs_response.txt')}`,
+            'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize',
+        ].join(' '));
+    }).subscribe(() => {
+        const response = fs.readFileSync(filePath('avs_response.txt'));
+        const parsedMessage = httpMessageParser(response);
+        const multipart = parsedMessage.multipart[1];
+        fs.writeFileSync(filePath('avs_response.mp3'), multipart.body);
+    }, error => console.error);
 
 const args = process.argv.slice(2);
 switch (args[0]) {
