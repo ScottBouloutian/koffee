@@ -1,11 +1,11 @@
+const Promise = require('bluebird');
 const AWS = require('aws-sdk');
 const { Observable } = require('rxjs');
-const axios = require('axios');
 const auth = require('./auth');
 const path = require('path');
 const fs = require('fs');
 const httpMessageParser = require('http-message-parser');
-const { exec } = require('child_process');
+const { exec } = Promise.promisifyAll(require('child_process'));
 const speech = require('@google-cloud/speech');
 const storage = require('@google-cloud/storage');
 
@@ -15,8 +15,7 @@ const bucketName = 'scottbouloutian-dev';
 AWS.config.update({ region: 'us-east-1' });
 
 const polly = new AWS.Polly();
-const synthesizeSpeech = Observable.bindNodeCallback((...args) => polly.synthesizeSpeech(...args));
-const execListener = Observable.bindNodeCallback(exec);
+const synthesizeSpeech = Promise.promisify(polly.synthesizeSpeech, { context: polly });
 const speechClient = speech({
     projectId: 'koffee-178115',
     keyFilename: path.resolve(__dirname, 'google.json'),
@@ -28,23 +27,20 @@ const storageClient = storage({
 
 function uploadSpeech(filePath) {
     const bucket = storageClient.bucket(bucketName);
-    const upload = Observable.bindNodeCallback((...args) => bucket.upload(...args));
+    const upload = Promise.promisify(bucket.upload, { context: bucket });
     return upload(filePath);
 }
 
 function recognizeSpeech() {
-    console.log('recognizing speech');
     const request = {
         config: {
             languageCode: 'en-US',
-            sampleRateHertz: 16000,
-            encoding: speech.v1.types.RecognitionConfig.AudioEncoding.LINEAR16,
         },
         audio: {
-            uri: `gs://${bucketName}/avs_response.mp3`,
+            uri: `gs://${bucketName}/avs_response.flac`,
         },
     };
-    return speechClient.recognize(request).then(console.log, console.error);
+    return speechClient.recognize(request);
 }
 
 function order() {
@@ -68,18 +64,18 @@ function order() {
         VoiceId: 'Joanna',
     };
     synthesizeSpeech(params)
-        .flatMap((data) => {
+        .then((data) => {
             fs.writeFileSync(filePath('polly.mp3'), data.AudioStream);
             // Convert audio to avs accepted format
-            return execListener([
+            return exec([
                 'sox',
                 filePath('polly.mp3'),
                 '-c 1 -r 16000 -e signed -b 16',
                 filePath('avs_request.wav'),
             ].join(' '));
         })
-        .flatMap(() => (
-            execListener([
+        .then(() => (
+            exec([
                 'curl -i -k',
                 `-H "Authorization: Bearer ${token}"`,
                 '-F "metadata=<metadata.json;type=application/json; charset=UTF-8"',
@@ -88,25 +84,22 @@ function order() {
                 'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize',
             ].join(' '))
         ))
-        .flatMap(() => {
+        .then(() => {
             const response = fs.readFileSync(filePath('avs_response.txt'));
             const parsedMessage = httpMessageParser(response);
             const multipart = parsedMessage.multipart[1];
             fs.writeFileSync(filePath('avs_response.mp3'), multipart.body);
-            return execListener([
+            return exec([
                 'sox',
                 filePath('avs_response.mp3'),
                 filePath('avs_response.flac'),
             ].join(' '));
         })
-        .flatMap(() => uploadSpeech(filePath('avs_response.wav')))
-        .flatMap(() => recognizeSpeech())
-        .subscribe((response) => {
-            console.log(response);
-            console.log('done');
-        }, error => console.log, () => {
-            console.log('all complete');
-        });
+        .then(() => uploadSpeech(filePath('avs_response.flac')))
+        .then(() => recognizeSpeech())
+        .then((response) => {
+            console.log(response[0].results[0].alternatives[0].transcript);
+        }, console.error);
 }
 
 const args = process.argv.slice(2);
