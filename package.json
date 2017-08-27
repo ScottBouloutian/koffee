@@ -3,6 +3,8 @@
     "start": "node index"
   },
   "dependencies": {
+    "@google-cloud/speech": "^0.10.2",
+    "@google-cloud/storage": "^1.2.1",
     "aws-sdk": "^2.101.0",
     "axios": "^0.16.2",
     "http-message-parser": "^0.0.25",
