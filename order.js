@@ -47,6 +47,7 @@ function speechQuery(text) {
     const { token } = JSON.parse(jsonData);
     const tempDirectory = path.resolve(__dirname, '.tmp');
     const filePath = fileName => path.resolve(tempDirectory, fileName);
+    const metadataPath = path.resolve(__dirname, 'metadata.json');
 
     // Create a temporary working directory
     if (!fs.existsSync(tempDirectory)) {
@@ -77,7 +78,7 @@ function speechQuery(text) {
             exec([
                 'curl -i -k',
                 `-H "Authorization: Bearer ${token}"`,
-                '-F "metadata=<metadata.json;type=application/json; charset=UTF-8"',
+                `-F "metadata=<${metadataPath};type=application/json; charset=UTF-8"`,
                 `-F "audio=<${filePath('avs_request.wav')};type=audio/L16; rate=16000; channels=1"`,
                 `-o ${filePath('avs_response.txt')}`,
                 'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize',
