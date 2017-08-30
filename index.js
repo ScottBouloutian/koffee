@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const auth = require('./auth');
 const { order, balance } = require('./order');
 const ora = require('ora');
