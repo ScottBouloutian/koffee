@@ -2,6 +2,9 @@
   "scripts": {
     "start": "node index"
   },
+  "bin": {
+      "koffee": "index.js"
+  },
   "dependencies": {
     "@google-cloud/speech": "^0.10.2",
     "@google-cloud/storage": "^1.2.1",
