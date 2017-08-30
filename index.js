@@ -38,5 +38,5 @@ case 'balance':
         });
     break;
 default:
-    console.log('Try typing auth or order');
+    console.log('Try typing auth, order, or balance');
 }

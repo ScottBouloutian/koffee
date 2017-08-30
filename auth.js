@@ -80,7 +80,7 @@ const auth = {
     },
 
     refresh() {
-        const tokenData = JSON.parse(fs.readFileSync('.token.json'));
+        const tokenData = JSON.parse(fs.readFileSync(path.resolve(__dirname, '.token.json')));
         return axios.post('https://api.amazon.com/auth/o2/token', {
             grant_type: 'refresh_token',
             refresh_token: tokenData.refreshToken,
