@@ -5,15 +5,10 @@ const opn = require('opn');
 const fs = require('fs');
 const path = require('path');
 
-// const clientId = process.env.KOFFEE_CLIENT_ID;
-// const clientSecret = process.env.KOFFEE_CLIENT_SECRET;
-// const productId = process.env.KOFFEE_PRODUCT_ID;
-// const deviceId = process.env.KOFFEE_DEVICE_ID;
-
-const clientId = 'amzn1.application-oa2-client.07229ccdcc3945bea66b5dd44d985513';
-const clientSecret = 'b2f663ae7a971b7ab3b1b7e97df3377825e823ed336c6806cc316699e60e9a97';
-const productId = 'Koffee';
-const deviceId = 'com.scottbouloutian.koffee';
+const clientId = process.env.KOFFEE_CLIENT_ID;
+const clientSecret = process.env.KOFFEE_CLIENT_SECRET;
+const productId = process.env.KOFFEE_PRODUCT_ID;
+const deviceId = process.env.KOFFEE_DEVICE_ID;
 const randomString = Math.random().toString();
 const port = 3000;
 const redirectUri = `http://localhost:${port}/callback`;
@@ -69,7 +64,8 @@ const auth = {
                         resp.end(`Error code ${response.status}`);
                     }
                     const token = response.data.access_token;
-                    const data = JSON.stringify({ token });
+                    const refreshToken = response.data.refresh_token;
+                    const data = JSON.stringify({ token, refreshToken });
                     fs.writeFileSync(path.resolve(__dirname, '.token.json'), data);
                     resp.end('Done, you may close this page');
                     server.close();
@@ -81,6 +77,25 @@ const auth = {
             }
         }).listen(port);
         opn(`http://localhost:${port}`);
+    },
+
+    refresh() {
+        const tokenData = JSON.parse(fs.readFileSync('.token.json'));
+        return axios.post('https://api.amazon.com/auth/o2/token', {
+            grant_type: 'refresh_token',
+            refresh_token: tokenData.refreshToken,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+        }).then((response) => {
+            if (response.status !== 200) {
+                throw new Error(`error code ${response.status}`);
+            }
+            const token = response.data.access_token;
+            const refreshToken = response.data.refresh_token;
+            const data = JSON.stringify({ token, refreshToken });
+            fs.writeFileSync(path.resolve(__dirname, '.token.json'), data);
+        });
     },
 };
 module.exports = auth;
