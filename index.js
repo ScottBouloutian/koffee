@@ -15,7 +15,11 @@ case 'order':
         .then(() => order())
         .then((result) => {
             spinner.stop();
-            console.log(result)
+            console.log(result);
+        })
+        .catch((error) => {
+            spinner.stop();
+            console.error(error);
         });
     break;
 case 'balance':
@@ -24,7 +28,11 @@ case 'balance':
         .then(() => balance())
         .then((result) => {
             spinner.stop();
-            console.log(result)
+            console.log(result);
+        })
+        .catch((error) => {
+            spinner.stop();
+            console.error(error);
         });
     break;
 default:
