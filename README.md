@@ -1,5 +1,7 @@
 # koffee
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/ScottBouloutian/koffee.svg)](https://greenkeeper.io/)
+
 ```
 koffee get # re-orders your last coffee order
 kofee balance # checks your available balance
