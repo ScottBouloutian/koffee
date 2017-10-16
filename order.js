@@ -101,7 +101,8 @@ function speechQuery(text) {
 }
 
 function order() {
-    return speechQuery('Alexa, tell Starbucks to start my order');
+    return speechQuery('tell Starbucks to start my order')
+        .then(() => speechQuery('yes'));
 }
 
 function balance() {
