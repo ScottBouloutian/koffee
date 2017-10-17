@@ -7,7 +7,7 @@ const figletLib = require('figlet');
 const Promise = require('bluebird');
 
 const args = process.argv.slice(2);
-const spinner = ora('☕ Loading coffee...');
+const spinner = ora('☕️ Loading coffee...');
 const figlet = Promise.promisify(figletLib);
 
 function showAscii() {
