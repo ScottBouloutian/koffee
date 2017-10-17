@@ -1,7 +1,10 @@
 # koffee
 
+![screenshot](/screenshots/koffee.png)
+
 ```
-koffee get # re-orders your last coffee order
+koffee auth # authenticate with amazon
+koffee order # re-orders your last coffee order
 kofee balance # checks your available balance
 ```
 This project is a convoluted way to order your Starbucks coffee directly from your terminal.
@@ -20,3 +23,6 @@ This project is a convoluted way to order your Starbucks coffee directly from yo
 - `KOFFEE_CLIENT_SECRET` - client secret of your Alexa voice service application
 - `KOFFEE_PRODUCT_ID` - product id of your Alexa voice service application
 - `KOFFEE_DEVICE_ID` - unique device id for the device running this application
+
+## Known Issues
+- After ordering a coffee it might say it will be ready in 49 minutes, when really it is 4 - 9 minutes
